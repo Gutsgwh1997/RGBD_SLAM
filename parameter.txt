@@ -1,0 +1,28 @@
+# 相机内参
+camera.cx=325.5;
+camera.cy=253.5;
+camera.fx=518.0;
+camera.fy=519.0;
+camera.scale=1000.0;
+
+#TUM数据集
+associate_root=/media/gwh/Work_Learning/ORB_SLAM2/Examples/Datasets/TUM/rgbd_dataset_freiburg2_pioneer_360/
+#起始索引与终止索引
+start_index=10
+end_index=750
+
+# 点云分辨率
+voxel_grid=0.01
+#外点去除
+meank=50
+stddevmulthresh=2.0
+#点云是否实时可视化
+visualize_pointcloud=yes
+
+#运动估计相关
+#最小内点
+min_inliers=5
+#最大帧间运动
+max_norm=0.3
+#最小间匹配数量
+min_good_match=8
