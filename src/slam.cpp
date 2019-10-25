@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     vector<FRAME> keyframes;
     FRAME frame1, frame2;
     frame1.rgb = cv::imread(rgb_files[start_index]);
-    frame1.depth = cv::imread(depth_files[start_index]);
+    frame1.depth = cv::imread(depth_files[start_index], -1); //注意灰度图，加参数-1!!!
     frame1.frameID = start_index;  //frameID是新添加的成员变量
     computeKeypointsAndDescriptors(frame1);
     PointCloud::Ptr cloud_raw = image2PointCloud(frame1.rgb, frame1.depth, camera);
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     for ( int i = start_index+1; i <= end_index; i++)
     {
         cout<<"Reading "<<i<<" file"<<endl;
-        frame2.depth = cv::imread(depth_files[i]);
+        frame2.depth = cv::imread(depth_files[i], -1);
         frame2.rgb = cv::imread(rgb_files[i]);
         frame2.frameID = i;
         //将新帧与关键帧的最后一帧匹配比较
@@ -259,7 +259,7 @@ CHECK_RESULT checkKeyframes( FRAME& f1, FRAME& f2, g2o::SparseOptimizer& opt, bo
     static ParameterReader pd;
     static int min_inliers = atoi(pd.getData("min_inliers").c_str());
     static double max_norm = atof( pd.getData("max_norm").c_str());
-    static double keyframe_threshold = atof( pd.getData("keyfame_threshole").c_str());
+    static double keyframe_threshold = atof( pd.getData("keyframe_threshold").c_str());
     //添加鲁棒核函数
     static g2o::RobustKernel* robustKernel = g2o::RobustKernelFactory::instance()->construct("Cauchy");
 
