@@ -23,6 +23,13 @@ visualize_pointcloud=yes
 #最小内点
 min_inliers=5
 #最大帧间运动
-max_norm=0.3
+max_norm=2
 #最小间匹配数量
-min_good_match=8
+min_good_match=5
+#两个关键帧之间的最小运动
+keyframe_threshold=0.1
+#是否检测回环
+check_loop_closure=true
+#最近回环，检测帧数
+nearby_loops=5
+random_loops=5
