@@ -7,7 +7,9 @@
 #include "slamBase.h"
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/transforms.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 #include <g2o/types/slam3d/types_slam3d.h>
 #include <g2o/core/sparse_optimizer.h>
@@ -144,7 +146,7 @@ int main(int argc, char *argv[])
 
         //优化
         cout<<RESET"Optimizing pose graph, vertise: "<<globalOptimizer.vertices().size()<<endl;
-        globalOptimizer.save("./data/result_brfore.g2o");
+        globalOptimizer.save("./data/result_before.g2o");
         globalOptimizer.initializeOptimization();
         globalOptimizer.optimize(100); //优化步数
         globalOptimizer.save("./data/result_after.g2o");
@@ -165,6 +167,11 @@ int main(int argc, char *argv[])
         pass.setFilterFieldName("z");
         pass.setFilterLimits(0.0, 4.0);   //小于0.0m，大于4.0m的统统不要
 
+        //可视化
+        pcl::visualization::CloudViewer viewer("viewer of frames");
+        string visualize_pointcloud = pd.getData("visualize_pointcloud");
+        bool visualize = visualize_pointcloud == string("yes");
+
         for (size_t i = 0; i < keyframes.size(); i++)
         {
             //从g2o中取一帧,还是忘记了智能指针．．．．．．．
@@ -184,6 +191,10 @@ int main(int argc, char *argv[])
             pcl::transformPointCloud( *newCloud, *output, T_21.inverse().matrix());
             *cloud_raw += *output;
 
+            //可视化
+            if (visualize)
+                viewer.showCloud( cloud_raw );
+
             tmp ->clear();
             output->clear();
 
@@ -193,8 +204,18 @@ int main(int argc, char *argv[])
         voxel.setInputCloud( cloud_raw );
         voxel.filter( *tmp );
 
+        //去除离群点
+        double meank= atof( pd.getData("meank").c_str());
+        double stddevmulthresh = atof(pd.getData("stddevmulthresh").c_str());
+        PointCloud::Ptr after_filter ( new PointCloud());
+        pcl::StatisticalOutlierRemoval<PointT> statistical_filter;
+        statistical_filter.setMeanK(meank);                     //设置进行统计时，考虑查询点相邻点的数量
+        statistical_filter.setStddevMulThresh(stddevmulthresh);   //是否为离群点的阈值
+        statistical_filter.setInputCloud(tmp);
+        statistical_filter.filter(*after_filter);
+
         //点云保存
-        pcl::io::savePCDFile("./data/result.pcd", *tmp);
+        pcl::io::savePCDFile("./data/result.pcd", *after_filter);
 
         cout<<GREEN"Final map is saved."<<endl;
         globalOptimizer.clear();
@@ -259,14 +280,23 @@ CHECK_RESULT checkKeyframes( FRAME& f1, FRAME& f2, g2o::SparseOptimizer& opt, bo
     static ParameterReader pd;
     static int min_inliers = atoi(pd.getData("min_inliers").c_str());
     static double max_norm = atof( pd.getData("max_norm").c_str());
+    static double max_norm_loop = atof( pd.getData("max_norm_loop").c_str());
     static double keyframe_threshold = atof( pd.getData("keyframe_threshold").c_str());
     //添加鲁棒核函数
     static g2o::RobustKernel* robustKernel = g2o::RobustKernelFactory::instance()->construct("Cauchy");
 
-    RESULT_OF_PNP result = estimateMotion( f1, f2, camera);
+    static bool neidian;
+    static RESULT_OF_PNP result;
+    neidian = estimateMotion2( f1, f2, camera, result);
+    if (neidian == false)                   //在estimateMotion２中定义的，少于4对配对点，不pnp，否则出错.
+    {
+        cout<<RED"Too few match points, can't solve PNP."<<endl;
+        return NOT_MATCHED;
+    }
     if ( result.inliers < min_inliers)  //内点过少
         return NOT_MATCHED;
     double norm = normofTransform(result.rvec, result.tvec);
+    cout<<WHITE"Relative montion is "<<norm<<endl;
     if ( is_loops == false)   //是否处于回环检测模式
     {
         if ( norm > max_norm)
@@ -274,7 +304,7 @@ CHECK_RESULT checkKeyframes( FRAME& f1, FRAME& f2, g2o::SparseOptimizer& opt, bo
     }
     else
     {
-        if (norm > max_norm)
+        if (norm > max_norm_loop)
             return TOO_FAR_AWAY;
         //可以另外设置回环检测时最大的距离
     }
@@ -295,7 +325,7 @@ CHECK_RESULT checkKeyframes( FRAME& f1, FRAME& f2, g2o::SparseOptimizer& opt, bo
     edge->vertices()[0] = opt.vertex(f1.frameID);
     edge->vertices()[1] = opt.vertex( f2.frameID);
     Eigen::Isometry3d measurement = cvMat2Eigen(result.rvec, result.tvec);
-    edge->setMeasurement( measurement );
+    edge->setMeasurement( measurement);  //这里为什么要加一个逆？
     edge->setRobustKernel(robustKernel);
     //信息矩阵
     Eigen::Matrix<double,6,6> information = Eigen::Matrix<double,6,6>::Identity();
@@ -323,6 +353,7 @@ void checkNearbyLoops( vector<FRAME>& frames, FRAME& frame, g2o::SparseOptimizer
     static ParameterReader pd;
     static  int nearby_loops = atoi( pd.getData("nearby_loops").c_str());
 
+    cout<<MAGENTA"Checking nearby loops..."<<endl;
     //把frame和frames最后nearby_loops检测一遍
     if (frames.size() <= nearby_loops)
     {
@@ -352,6 +383,7 @@ void checkRandomLoops( vector<FRAME>& frames, FRAME& frame, g2o::SparseOptimizer
     //初始化随机数发生器，srand设置相同值，每次随机结果一样
     srand((unsigned)time(NULL));
 
+    cout<<MAGENTA"Checking random loops..."<<endl;
     if (frames.size() <= random_loops)
     {
         //关键帧不足，逐个比较

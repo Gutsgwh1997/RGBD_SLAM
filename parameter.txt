@@ -8,7 +8,7 @@ camera.scale=1000.0;
 #TUM数据集
 associate_root=/media/gwh/Work_Learning/ORB_SLAM2/Examples/Datasets/TUM/rgbd_dataset_freiburg2_pioneer_360/
 #起始索引与终止索引
-start_index=200
+start_index=10
 end_index=750
 
 # 点云分辨率
@@ -23,13 +23,14 @@ visualize_pointcloud=yes
 #最小内点
 min_inliers=5
 #最大帧间运动
-max_norm=0.5
-#最小间匹配数量
+max_norm=0.2
+#最小间匹配数量,能进入pnp求解器的最小点(EPNP-4)
 min_good_match=8
 #两个关键帧之间的最小运动
-keyframe_threshold=0.1
+keyframe_threshold=0.06
 #是否检测回环
-check_loop_closure=true
+check_loop_closure=yes
 #最近回环，检测帧数
+max_norm_loop=5.0
 nearby_loops=5
 random_loops=5

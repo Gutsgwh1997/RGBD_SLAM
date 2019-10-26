@@ -146,7 +146,7 @@ bool estimateMotion2(FRAME & frame_1, FRAME & frame_2, CAMERA_INTRINSIC_PARAMETE
     //求解PnP
     ParameterReader pd;
     int min_good_match = atoi(pd.getData("min_good_match").c_str());
-    if ( pts_3d.size() < min_good_match)
+    if ( pts_3d.size() < min_good_match)    //EPNP求解需要四对不共面的匹配点，共面需要3对
         return false;
     else
     {
